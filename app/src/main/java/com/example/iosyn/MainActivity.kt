@@ -37,6 +37,7 @@ import com.example.iosyn.service.MagneticFieldService
 import com.example.iosyn.service.ProximityService
 import com.example.iosyn.ui.theme.IOSYNTheme
 import com.example.iosyn.utils.ServiceType
+import kotlin.random.Random
 
 
 class MainActivity : ComponentActivity() {
@@ -46,20 +47,21 @@ class MainActivity : ComponentActivity() {
     lateinit var LightIntent: Intent
     lateinit var ProximityIntent: Intent
     private lateinit var sm: SensorManager
+    private val exchangeName = Random(System.currentTimeMillis()).nextInt(99999999).toString()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sm = getSystemService(SENSOR_SERVICE) as SensorManager
-        AccelerometerIntent = Intent(this, AccelerometerService::class.java)
-        GyroscopeIntent = Intent(this, GyroscopeService::class.java)
-        MagneticFieldIntent = Intent(this, MagneticFieldService::class.java)
-        LightIntent = Intent(this, LightService::class.java)
-        ProximityIntent = Intent(this, ProximityService::class.java)
+        AccelerometerIntent = Intent(this, AccelerometerService::class.java).putExtra("EXCHANGE_NAME", exchangeName)
+        GyroscopeIntent = Intent(this, GyroscopeService::class.java).putExtra("EXCHANGE_NAME", exchangeName)
+        MagneticFieldIntent = Intent(this, MagneticFieldService::class.java).putExtra("EXCHANGE_NAME", exchangeName)
+        LightIntent = Intent(this, LightService::class.java).putExtra("EXCHANGE_NAME", exchangeName)
+        ProximityIntent = Intent(this, ProximityService::class.java).putExtra("EXCHANGE_NAME", exchangeName)
         setContent {
             IOSYNTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    MainPage(::startService, ::stopService)
+                    MainPage(exchangeName, ::startService, ::stopService)
                 }
             }
         }
@@ -91,7 +93,7 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun MainPage(startService: (ServiceType) -> Unit, stopService: (ServiceType) -> Unit) {
+fun MainPage(exchangeName: String, startService: (ServiceType) -> Unit, stopService: (ServiceType) -> Unit) {
     Column(modifier = Modifier
         .fillMaxSize()
         .padding(2.dp),
@@ -103,6 +105,7 @@ fun MainPage(startService: (ServiceType) -> Unit, stopService: (ServiceType) -> 
             .padding(2.dp),
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally,) {
+            Text(text = exchangeName.toString(), fontWeight = FontWeight.Bold, fontSize = 25.sp, modifier = Modifier.padding(bottom = 10.dp))
             Text(text = "Services", fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.padding(bottom = 10.dp))
             ServiceRow(serviceType = ServiceType.ACCELEROMETER, startService = startService, stopService = stopService)
             ServiceRow(serviceType = ServiceType.GYROSCOPE, startService = startService, stopService = stopService)

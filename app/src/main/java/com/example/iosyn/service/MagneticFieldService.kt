@@ -23,7 +23,7 @@ class MagneticFieldService: Service() {
     var channel: Channel? = null
     private lateinit var sensor: Sensor
     lateinit var routingKey: String
-    val EXCHANGE_NAME = "CLIENT_SAMSUNG_S10"
+    var EXCHANGE_NAME = "default"
 
     @OptIn(DelicateCoroutinesApi::class)
     var sel: SensorEventListener = object : SensorEventListener {
@@ -75,7 +75,7 @@ class MagneticFieldService: Service() {
                 factory.password = "1234"
                 factory.virtualHost = "vh1"
                 channel = factory.newConnection().createChannel()
-                channel?.exchangeDeclare("mobile", "topic")
+                channel?.exchangeDeclare(EXCHANGE_NAME, "topic")
                 routingKey = ServiceType.MAGNETIC_FIELD.name
             } catch (e: Exception) {
                 Log.e("Rabbitmq Connection Exception", e.toString())
@@ -91,6 +91,7 @@ class MagneticFieldService: Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Toast.makeText(this, "service starting", Toast.LENGTH_SHORT).show()
+        EXCHANGE_NAME = intent.extras?.getString("EXCHANGE_NAME").toString()
         return START_STICKY
     }
 
