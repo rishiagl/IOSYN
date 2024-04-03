@@ -3,6 +3,7 @@ package com.example.iosyn
 import android.content.Intent
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -37,6 +39,10 @@ import com.example.iosyn.service.MagneticFieldService
 import com.example.iosyn.service.ProximityService
 import com.example.iosyn.ui.theme.IOSYNTheme
 import com.example.iosyn.utils.ServiceType
+import com.rabbitmq.client.ConnectionFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 
@@ -48,7 +54,7 @@ class MainActivity : ComponentActivity() {
     lateinit var ProximityIntent: Intent
     private lateinit var sm: SensorManager
     private val exchangeName = Random(System.currentTimeMillis()).nextInt(99999999).toString()
-
+    private var context_label = "unlabelled"
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sm = getSystemService(SENSOR_SERVICE) as SensorManager
@@ -61,7 +67,7 @@ class MainActivity : ComponentActivity() {
             IOSYNTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    MainPage(exchangeName, ::startService, ::stopService)
+                    MainPage(exchangeName, ::startService, ::stopService, ::switchContext)
                 }
             }
         }
@@ -72,6 +78,29 @@ class MainActivity : ComponentActivity() {
             stopService(AccelerometerIntent)
         }
         super.onDestroy()
+    }
+
+    private fun switchContext(context: String){
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val factory = ConnectionFactory()
+                factory.host = "52.66.250.239"
+                factory.username = "rishiagl"
+                factory.password = "1234"
+                factory.virtualHost = "vh1"
+                val channel = factory.newConnection().createChannel()
+                channel.exchangeDeclare(exchangeName, "topic")
+                channel.basicPublish(
+                    exchangeName,
+                    "CONTEXT",
+                    null,
+                    context.toByteArray()
+                )
+                channel.connection.close()
+            } catch (e: Exception) {
+                Log.e("Rabbitmq Connection Exception", e.toString())
+            }
+        }
     }
 
     private fun startService(type: ServiceType){
@@ -93,7 +122,7 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun MainPage(exchangeName: String, startService: (ServiceType) -> Unit, stopService: (ServiceType) -> Unit) {
+fun MainPage(exchangeName: String, startService: (ServiceType) -> Unit, stopService: (ServiceType) -> Unit, switchContext:(String) -> Unit) {
     Column(modifier = Modifier
         .fillMaxSize()
         .padding(2.dp),
@@ -112,6 +141,27 @@ fun MainPage(exchangeName: String, startService: (ServiceType) -> Unit, stopServ
             ServiceRow(serviceType = ServiceType.LIGHT, startService = startService, stopService = stopService)
             ServiceRow(serviceType = ServiceType.MAGNETIC_FIELD, startService = startService, stopService = stopService)
             ServiceRow(serviceType = ServiceType.PROXIMITY, startService = startService, stopService = stopService)
+            Column (modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp)
+                .padding(start = 15.dp, end = 15.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Column(modifier = Modifier.padding(4.dp)) {
+                    Text(text = "Context Switch", fontWeight = FontWeight.Bold)
+                }
+                Column {
+                    Row {
+                        Button(onClick = { switchContext("INDOOR")}, modifier = Modifier.padding(2.dp)) {
+                            Text(text = "Indoor")
+                        }
+                        Button(onClick = { switchContext("OUTDOOR")}, modifier = Modifier.padding(2.dp)) {
+                            Text(text = "OUTDOOR")
+                        }
+                    }
+                }
+            }
         }
     }
 }
